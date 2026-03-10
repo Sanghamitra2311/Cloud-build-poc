@@ -1,7 +1,6 @@
-# GCP Cloud Run CI/CD Proof of Concept (PoC)
+# GCP Cloud Run CI/CD 
 
 ## 📌 Overview
-This repository contains a Proof of Concept (PoC) demonstrating the migration of a CI/CD pipeline from AWS (ECR/ECS) to Google Cloud Platform (GCP). 
 
 It utilizes **GitHub Actions** to automate the build and deployment of a containerized Node.js application to **Google Cloud Run**, using **Google Artifact Registry (GAR)** for image storage and **Workload Identity Federation (WIF)** for secure, keyless authentication.
 
