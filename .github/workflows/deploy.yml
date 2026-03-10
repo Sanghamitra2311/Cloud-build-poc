@@ -1,0 +1,49 @@
+name: deploy
+on: 
+  workflow_dispatch: # Allows manual trigger for testing
+
+env:
+  PROJECT_ID: ornate-node-483516-e3
+  GCP_REGION: asia-southeast1
+  GAR_LOCATION: asia-southeast1-docker.pkg.dev
+  REPOSITORY: algolia-repo
+  IMAGE_NAME: algolia-client
+  CLOUD_RUN_SERVICE: app 
+  IMAGE_TAG: sha-${{ github.sha }}
+
+permissions:
+  id-token: write
+  contents: read
+  deployments: write
+  statuses: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+
+  deploy:
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    
+    # environment and debug blocks have been completely removed
+    
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Cloud Run Deploy
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.CLOUD_RUN_SERVICE }}
+          region: ${{ env.GCP_REGION }}
+          image: ${{ env.GAR_LOCATION }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          flags: '--allow-unauthenticated' # Allows you to actually view the dummy app in your browser
+
+      - name: Show Output URL
+        run: echo "Successfully deployed! View your app at ${{ steps.deploy.outputs.url }}"

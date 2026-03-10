@@ -1,0 +1,127 @@
+name: build
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ornate-node-483516-e3
+  GCP_REGION: asia-southeast1
+  GAR_LOCATION: asia-southeast1-docker.pkg.dev
+  REPOSITORY: your-artifact-registry-repo-name # Replace with your GAR repository name
+  IMAGE_NAME: algolia-client
+  IMAGE_TAG: sha-${{ github.sha }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Authenticate to GCP via Workload Identity Federation (Equivalent to AWS OIDC)
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }} # e.g., projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }} # e.g., my-service-account@ornate-node-483516-e3.iam.gserviceaccount.com
+
+      # 2. Set up Cloud SDK (Equivalent to having AWS CLI available)
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      # 3. Login to Artifact Registry
+      - name: Login to GAR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GAR_LOCATION }}
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      # (Retained from your original script)
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_PACKAGES_TOKEN }}
+
+      - name: Cache Docker Build
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Set image name
+        id: image-name
+        run: |
+          FULL_IMAGE_NAME="${{ env.GAR_LOCATION }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
+          echo "IMAGE_NAME=$FULL_IMAGE_NAME" >> $GITHUB_ENV
+          echo "image_name=$FULL_IMAGE_NAME" >> "$GITHUB_OUTPUT"
+
+      # 4. Check if image exists in GAR (Equivalent to AWS ECR check)
+      - name: Check if image exists in GAR
+        id: check-image
+        run: |
+          if gcloud artifacts docker images describe ${{ steps.image-name.outputs.image_name }}:${{ env.IMAGE_TAG }} > /dev/null 2>&1; then
+            echo "image_found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and Push Image
+        if: steps.check-image.outputs.image_found == 'false'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image-name.outputs.image_name }}:${{ env.IMAGE_TAG }},${{ steps.image-name.outputs.image_name }}:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          build-args: |
+            "NPM_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}"
+
+      - name: Move cache
+        if: steps.check-image.outputs.image_found == 'false'
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Trivy cache
+        if: steps.check-image.outputs.image_found == 'false'
+        uses: actions/cache@v4
+        with:
+          path: /tmp/trivy
+          key: ${{ runner.os }}-trivy
+
+      - name: Run Trivy vulnerability scanner
+        if: steps.check-image.outputs.image_found == 'false'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.image-name.outputs.image_name }}:${{ env.IMAGE_TAG }}
+          format: 'table'
+          exit-code: '0' # Change to 1 to fail build
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          timeout: '10m'
+
+      - name: Logout of Docker Registries
+        if: always()
+        run: |
+          docker logout ${{ env.GAR_LOCATION }}
+          docker logout ghcr.io
