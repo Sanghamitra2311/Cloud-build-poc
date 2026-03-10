@@ -10,8 +10,8 @@ env:
   PROJECT_ID: ornate-node-483516-e3
   GCP_REGION: asia-southeast1
   GAR_LOCATION: asia-southeast1-docker.pkg.dev
-  REPOSITORY: your-artifact-registry-repo-name # Replace with your GAR repository name
-  IMAGE_NAME: algolia-client
+  REPOSITORY: algolia-repo # Replace with your GAR repository name
+  IMAGE_NAME: test-image
   IMAGE_TAG: sha-${{ github.sha }}
 
 permissions:
