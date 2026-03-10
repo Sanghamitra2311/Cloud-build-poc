@@ -7,7 +7,7 @@ env:
   GCP_REGION: asia-southeast1
   GAR_LOCATION: asia-southeast1-docker.pkg.dev
   REPOSITORY: algolia-repo
-  IMAGE_NAME: algolia-client
+  IMAGE_NAME: test-image
   CLOUD_RUN_SERVICE: app 
   IMAGE_TAG: sha-${{ github.sha }}
 
