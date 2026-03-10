@@ -49,14 +49,22 @@ jobs:
           registry: ${{ env.GAR_LOCATION }}
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
+ 
+    #   # (Retained from your original script) Not required 
+    #   - name: Log in to GitHub Container Registry
+    #     uses: docker/login-action@v3
+    #     with:
+    #       registry: ghcr.io
+    #       username: ${{ github.actor }}
+    #       password: ${{ secrets.GH_PACKAGES_TOKEN }}
 
-      # (Retained from your original script)
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GH_PACKAGES_TOKEN }}
+    # # ✅ ONLY IF YOU NEED IT, CHANGE THE PASSWORD LINE TO THIS:
+    #   - name: Log in to GitHub Container Registry
+    #     uses: docker/login-action@v3
+    #     with:
+    #       registry: ghcr.io
+    #       username: ${{ github.actor }}
+    #       password: ${{ secrets.GITHUB_TOKEN }} # Use the built-in token
 
       - name: Cache Docker Build
         uses: actions/cache@v4
