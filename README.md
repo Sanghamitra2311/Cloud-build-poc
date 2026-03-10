@@ -52,6 +52,8 @@ To replicate this in another environment, the following GCP resources must be pr
         - Select the main branch and click Run workflow.
    Once completed, expand the final step in the logs (Show Output URL) to get the live URL of the deployed application.
 
+Github Actions: 
+<img width="1919" height="725" alt="image" src="https://github.com/user-attachments/assets/30c917d4-cd57-44b0-a1d2-125cb6ed8f89" />
 
 Cloud run app
 <img width="1912" height="609" alt="image" src="https://github.com/user-attachments/assets/4a65dc28-711f-46c9-a8af-80e75cd9f198" />
